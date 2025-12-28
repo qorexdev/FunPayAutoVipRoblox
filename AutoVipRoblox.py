@@ -586,7 +586,7 @@ def build_menu(chat_id: int):
             total = len(pool)
             free = sum(1 for s in pool if s.get("vipname") not in rented)
             emoji = "🟢" if free > 0 else "🔴"
-            text += f"   └ {emoji} {lot.get('name', 'N/A')[:25]}: {free}/{total}\n"
+            text += f"   └ {emoji} {lot.get('name', 'N/A')}: {free}/{total}\n"
     
     kb = K(row_width=2)
     
