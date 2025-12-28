@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from cardinal import Cardinal
 
 NAME = "AutoVIP Roblox"
-VERSION = "v10.11"
+VERSION = "v10.12"
 DESCRIPTION = "Автоматическая аренда VIP-Server Roblox"
 CREDITS = "@qorexdev лучший кодер фанпей коммьюнити btw"
 UUID = "75e4241f-128a-4cd7-bad6-7e67961fced7"
@@ -1424,4 +1424,5 @@ def on_delete():
 
 
 BIND_TO_PRE_INIT = [init]
+
 BIND_TO_DELETE = [on_delete]
