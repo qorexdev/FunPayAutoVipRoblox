@@ -22,14 +22,10 @@ if TYPE_CHECKING:
     from cardinal import Cardinal
 
 NAME = "AutoVIP Roblox"
-VERSION = "v10.14"
+VERSION = "v10.15"
 DESCRIPTION = "Автоматическая аренда VIP-Server Roblox"
 CREDITS = "@qorexdev лучший кодер фанпей коммьюнити btw"
 UUID = "75e4241f-128a-4cd7-bad6-7e67961fced7"
-
-# ВНИМАНИЕ! Eсли вы купили этот плагин — вас обманули.
-# Плагин полностью бесплатный и распространяется по лицензии CC BY-NC-SA 4.0.
-# Продажа запрещена. Если вам его продали — напишите мне в Telegram: @qorexdev
 LICENSE_WARNING = "⚠️ Плагин БЕСПЛАТНЫЙ. Продажа ЗАПРЕЩЕНА! Купили данный плагин? Сообщите @qorexdev"
 SETTINGS_PAGE = True
 
@@ -73,7 +69,21 @@ DEFAULT_TEMPLATES = {
 
 Спасибо, что остаёшься с нами! 💜""",
     "bonus_review": "🎁 Оставь отзыв 5⭐ и получи +{bonus_time} к аренде!",
-    "bonus_promo": "🎁 Бонус за покупку {qty} шт: +{hours}ч к аренде!"
+    "bonus_promo": "🎁 Бонус за покупку {qty} шт: +{hours}ч к аренде!",
+    "review_bonus_granted": """🎉 Спасибо за отзыв!
+
++{bonus_time} добавлено к твоей аренде!
+📅 Теперь активен до: {expiry} (МСК)
+
+Приятной игры! 💜""",
+    "time_added": """⏰ Время аренды изменено!
+
++{duration} добавлено к твоей аренде!
+📅 Теперь активен до: {expiry} (МСК)""",
+    "time_removed": """⏰ Время аренды изменено!
+
+-{duration} убрано из твоей аренды.
+📅 Теперь активен до: {expiry} (МСК)"""
 }
 
 DEFAULT_SETTINGS = {
@@ -98,7 +108,6 @@ tg = None
 bot: telebot.TeleBot = None
 cardinal_instance: 'Cardinal' = None
 stop_expiration_checker = threading.Event()
-
 
 class RobloxAPI:
     BASE_URL = "https://games.roblox.com"
@@ -186,7 +195,6 @@ class RobloxAPI:
         resp = self._request("PATCH", url, json={"active": active})
         return resp is not None and resp.status_code == 200
 
-
 def load_settings():
     global SETTINGS
     try:
@@ -205,11 +213,9 @@ def load_settings():
             for sub_key, sub_value in value.items():
                 SETTINGS[key].setdefault(sub_key, sub_value)
 
-
 def save_settings():
     with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
         json.dump(SETTINGS, f, indent=4, ensure_ascii=False)
-
 
 def load_lots_config():
     global LOTS_CONFIG
@@ -224,11 +230,9 @@ def load_lots_config():
     if "lot_mapping" not in LOTS_CONFIG:
         LOTS_CONFIG["lot_mapping"] = {}
 
-
 def save_lots_config():
     with open(LOTS_CONFIG_FILE, "w", encoding="utf-8") as f:
         json.dump(LOTS_CONFIG, f, indent=4, ensure_ascii=False)
-
 
 def load_active_links() -> List[Dict]:
     try:
@@ -239,11 +243,9 @@ def load_active_links() -> List[Dict]:
         pass
     return []
 
-
 def save_active_links(links: List[Dict]):
     with open(ACTIVE_LINKS_FILE, "w", encoding="utf-8") as f:
         json.dump(links, f, indent=4, ensure_ascii=False)
-
 
 def get_api(account_id: str) -> RobloxAPI | None:
     account_id = str(account_id)
@@ -266,7 +268,6 @@ def get_api(account_id: str) -> RobloxAPI | None:
         pass
     return None
 
-
 def parse_duration(duration_str: str) -> int | None:
     if not isinstance(duration_str, str):
         return None
@@ -275,7 +276,6 @@ def parse_duration(duration_str: str) -> int | None:
         return None
     value, unit = int(match.group(1)), match.group(2).lower()
     return value * 60 if unit == 'm' else value * 3600
-
 
 def format_duration(duration_str: str) -> str:
     match = re.search(r'(\d+)\s*(m|h)', duration_str, re.IGNORECASE)
@@ -294,10 +294,8 @@ def format_duration(duration_str: str) -> str:
         return f"{value} {plural(value, 'минуту', 'минуты', 'минут')}"
     return f"{value} {plural(value, 'час', 'часа', 'часов')}"
 
-
 def get_template(key: str) -> str:
     return SETTINGS.get("templates", {}).get(key) or DEFAULT_TEMPLATES.get(key, "")
-
 
 def render_message(key: str, **kwargs) -> str:
     template = get_template(key)
@@ -306,7 +304,6 @@ def render_message(key: str, **kwargs) -> str:
         return template.format(**kwargs)
     except:
         return template
-
 
 def get_server_config(order_description: str) -> Dict | None:
     lot_mapping = LOTS_CONFIG.get("lot_mapping", {})
@@ -319,7 +316,6 @@ def get_server_config(order_description: str) -> Dict | None:
                 best_match = lot_data
     return best_match
 
-
 def send_tg(message: str):
     if not SETTINGS.get("notifications_enabled"):
         return
@@ -328,7 +324,6 @@ def send_tg(message: str):
             bot.send_message(chat_id, message, parse_mode="HTML", disable_web_page_preview=True)
         except:
             pass
-
 
 def toggle_lot(cardinal: 'Cardinal', lot_id: int, active: bool) -> bool:
     if not SETTINGS.get("auto_toggle_lots"):
@@ -342,7 +337,6 @@ def toggle_lot(cardinal: 'Cardinal', lot_id: int, active: bool) -> bool:
         return True
     except:
         return False
-
 
 def handle_new_order(cardinal: 'Cardinal', event: NewOrderEvent):
     order = event.order
@@ -481,7 +475,6 @@ def handle_new_order(cardinal: 'Cardinal', event: NewOrderEvent):
     if not any(s.get("vipname") not in current_rented for s in server_pool):
         toggle_lot(cardinal, server_config.get("lot_id"), False)
 
-
 def check_expirations():
     while not stop_expiration_checker.is_set():
         try:
@@ -521,7 +514,6 @@ def check_expirations():
         
         stop_expiration_checker.wait(60)
 
-
 def handle_renewal_command(cardinal: 'Cardinal', event: NewMessageEvent):
     msg = event.message
     if not msg.text or msg.author == "FunPay" or msg.text.lower() != "!продление":
@@ -553,6 +545,123 @@ def handle_renewal_command(cardinal: 'Cardinal', event: NewMessageEvent):
     else:
         cardinal.send_message(msg.chat_id, render_message("error"))
 
+def handle_review_event(cardinal: 'Cardinal', event: NewMessageEvent):
+    from FunPayAPI import types as fp_types
+    
+    msg = event.message
+    if msg.type not in [fp_types.MessageTypes.NEW_FEEDBACK, fp_types.MessageTypes.FEEDBACK_CHANGED]:
+        return
+    
+    if msg.i_am_buyer:
+        return
+    
+    review_bonus = SETTINGS.get("review_bonus", {})
+    if not review_bonus.get("enabled"):
+        return
+    
+    order_id_match = re.search(r'#([A-Z0-9]{8})', str(msg))
+    if not order_id_match:
+        return
+    
+    order_id = order_id_match.group(1)
+    
+    active_links = load_active_links()
+    rental_idx = None
+    rental = None
+    for i, link in enumerate(active_links):
+        if link.get("order_id") == order_id:
+            rental_idx = i
+            rental = link
+            break
+    
+    if not rental:
+        return
+    
+    if rental.get("review_bonus_applied"):
+        return
+    
+    try:
+        order = cardinal.account.get_order(order_id)
+        if not order or not order.review:
+            return
+        
+        min_rating = review_bonus.get("min_rating", 5)
+        if order.review.stars < min_rating:
+            logger.info(f"{LOGGER_PREFIX} Отзыв {order.review.stars}★ < {min_rating}★, бонус не начислен")
+            return
+    except Exception as e:
+        logger.warning(f"{LOGGER_PREFIX} Не удалось получить заказ {order_id}: {e}")
+        return
+    
+    bonus_time_str = review_bonus.get("bonus_time_str", "1h")
+    bonus_seconds = parse_duration(bonus_time_str)
+    if not bonus_seconds:
+        return
+    
+    new_expires = rental["expires_at"] + bonus_seconds
+    active_links[rental_idx]["expires_at"] = new_expires
+    active_links[rental_idx]["review_bonus_applied"] = True
+    save_active_links(active_links)
+    
+    tz = SETTINGS.get("display", {}).get("timezone", "МСК")
+    expiry_str = datetime.datetime.fromtimestamp(new_expires).strftime('%d.%m.%Y %H:%M')
+    bonus_time_formatted = format_duration(bonus_time_str)
+    
+    chat_id = rental.get("chat_id")
+    if chat_id:
+        try:
+            cardinal.send_message(chat_id, render_message("review_bonus_granted", 
+                bonus_time=bonus_time_formatted, expiry=f"{expiry_str} ({tz})"))
+        except:
+            pass
+    
+    buyer = rental.get("buyer_username", "?")
+    send_tg(f"🎁 Бонус за отзыв: {buyer} +{bonus_time_formatted}")
+    logger.info(f"{LOGGER_PREFIX} Начислен бонус за отзыв: {buyer} +{bonus_time_formatted}")
+
+def modify_rental_time(rental_idx: int, hours: int, notify_buyer: bool = True) -> bool:
+    active_links = load_active_links()
+    
+    if rental_idx >= len(active_links):
+        return False
+    
+    rental = active_links[rental_idx]
+    seconds = hours * 3600
+    new_expires = rental["expires_at"] + seconds
+    
+    if new_expires < int(time.time()):
+        return False
+    
+    active_links[rental_idx]["expires_at"] = new_expires
+    save_active_links(active_links)
+    
+    if notify_buyer and cardinal_instance:
+        tz = SETTINGS.get("display", {}).get("timezone", "МСК")
+        expiry_str = datetime.datetime.fromtimestamp(new_expires).strftime('%d.%m.%Y %H:%M')
+        
+        abs_hours = abs(hours)
+        def plural(n, one, two, five):
+            if n % 10 == 1 and n % 100 != 11:
+                return one
+            if 2 <= n % 10 <= 4 and (n % 100 < 10 or n % 100 >= 20):
+                return two
+            return five
+        
+        duration_str = f"{abs_hours} {plural(abs_hours, 'час', 'часа', 'часов')}"
+        
+        chat_id = rental.get("chat_id")
+        if chat_id:
+            try:
+                if hours > 0:
+                    cardinal_instance.send_message(chat_id, render_message("time_added",
+                        duration=duration_str, expiry=f"{expiry_str} ({tz})"))
+                else:
+                    cardinal_instance.send_message(chat_id, render_message("time_removed",
+                        duration=duration_str, expiry=f"{expiry_str} ({tz})"))
+            except:
+                pass
+    
+    return True
 
 def build_menu(chat_id: int):
     if chat_id not in SETTINGS.get("notification_chats", []):
@@ -604,7 +713,6 @@ def build_menu(chat_id: int):
     
     return text, kb
 
-
 def templates_menu(call, cardinal):
     try:
         bot.clear_step_handler_by_chat_id(call.message.chat.id)
@@ -642,7 +750,6 @@ def templates_menu(call, cardinal):
     bot.edit_message_text(text, call.message.chat.id, call.message.id, reply_markup=kb, parse_mode="HTML")
     bot.answer_callback_query(call.id)
 
-
 def edit_template(call, cardinal):
     key = call.data.split(":")[1]
     current = get_template(key)
@@ -654,20 +761,17 @@ def edit_template(call, cardinal):
     bot.register_next_step_handler(msg, on_template_received, key)
     bot.answer_callback_query(call.id)
 
-
 def on_template_received(message, key):
     SETTINGS.setdefault("templates", DEFAULT_TEMPLATES.copy())[key] = message.text
     save_settings()
     bot.send_message(message.chat.id, "✅ Шаблон сохранён!")
     handle_command(message)
 
-
 def reset_templates(call, cardinal):
     SETTINGS["templates"] = DEFAULT_TEMPLATES.copy()
     save_settings()
     bot.answer_callback_query(call.id, "✅ Шаблоны сброшены")
     templates_menu(call, cardinal)
-
 
 def author_menu(call, cardinal):
     text = """👨‍💻 <b>Об авторе</b>
@@ -704,7 +808,6 @@ github.com/qorexdev/FunPaySigma
     
     bot.edit_message_text(text, call.message.chat.id, call.message.id, reply_markup=kb, parse_mode="HTML", disable_web_page_preview=True)
     bot.answer_callback_query(call.id)
-
 
 def rentals_menu(call, cardinal, page=0):
     try:
@@ -762,11 +865,9 @@ def rentals_menu(call, cardinal, page=0):
     bot.edit_message_text(text, call.message.chat.id, call.message.id, reply_markup=kb, parse_mode="HTML")
     bot.answer_callback_query(call.id)
 
-
 def rentals_page(call, cardinal):
     page = int(call.data.split(":")[1])
     rentals_menu(call, cardinal, page)
-
 
 def rental_details(call, cardinal):
     idx = int(call.data.split(":")[1])
@@ -797,6 +898,8 @@ def rental_details(call, cardinal):
         time_left = "0"
         status = "🔴 Истекла"
     
+    review_bonus = "✅" if rental.get("review_bonus_applied") else "❌"
+    
     text = f"""📋 <b>Детали аренды</b>
 ━━━━━━━━━━━━━━━━━━━━
 
@@ -808,15 +911,22 @@ def rental_details(call, cardinal):
 📅 <b>Истекает:</b> {expires_str} ({tz})
 ⏰ <b>Осталось:</b> {time_left}
 
-<b>Статус:</b> {status}"""
+<b>Статус:</b> {status}
+🎁 <b>Бонус за отзыв:</b> {review_bonus}"""
     
-    kb = K(row_width=1)
+    kb = K(row_width=3)
+    kb.add(B("➕ 1ч", callback_data=f"arp_rental_add:1:{idx}"),
+           B("➕ 3ч", callback_data=f"arp_rental_add:3:{idx}"),
+           B("➕ 6ч", callback_data=f"arp_rental_add:6:{idx}"))
+    kb.add(B("➖ 1ч", callback_data=f"arp_rental_sub:1:{idx}"),
+           B("➖ 3ч", callback_data=f"arp_rental_sub:3:{idx}"),
+           B("➖ 6ч", callback_data=f"arp_rental_sub:6:{idx}"))
+    kb.add(B("⏰ Ввести время", callback_data=f"arp_rental_time_input:{idx}"))
     kb.add(B("🛑 Завершить аренду", callback_data=f"arp_rental_end_confirm:{idx}"))
     kb.add(B("◀️ К списку", callback_data="arp_rentals"))
     
     bot.edit_message_text(text, call.message.chat.id, call.message.id, reply_markup=kb, parse_mode="HTML")
     bot.answer_callback_query(call.id)
-
 
 def rental_end_confirm(call, cardinal):
     idx = int(call.data.split(":")[1])
@@ -833,7 +943,6 @@ def rental_end_confirm(call, cardinal):
     
     bot.edit_message_text(text, call.message.chat.id, call.message.id, reply_markup=kb, parse_mode="HTML")
     bot.answer_callback_query(call.id)
-
 
 def rental_end(call, cardinal):
     idx = int(call.data.split(":")[1])
@@ -868,6 +977,80 @@ def rental_end(call, cardinal):
     bot.answer_callback_query(call.id, f"✅ Аренда {server_name} завершена")
     rentals_menu(call, cardinal)
 
+def rental_add_time(call, cardinal):
+    parts = call.data.split(":")
+    hours = int(parts[1])
+    idx = int(parts[2])
+    
+    if modify_rental_time(idx, hours, notify_buyer=True):
+        active_links = load_active_links()
+        if idx < len(active_links):
+            buyer = active_links[idx].get("buyer_username", "?")
+            send_tg(f"⏰ +{hours}ч к аренде {buyer}")
+        bot.answer_callback_query(call.id, f"✅ +{hours}ч к аренде")
+    else:
+        bot.answer_callback_query(call.id, "❌ Не удалось изменить время", show_alert=True)
+    
+    call.data = f"arp_rental:{idx}"
+    rental_details(call, cardinal)
+
+def rental_sub_time(call, cardinal):
+    parts = call.data.split(":")
+    hours = int(parts[1])
+    idx = int(parts[2])
+    
+    if modify_rental_time(idx, -hours, notify_buyer=True):
+        active_links = load_active_links()
+        if idx < len(active_links):
+            buyer = active_links[idx].get("buyer_username", "?")
+            send_tg(f"⏰ -{hours}ч от аренды {buyer}")
+        bot.answer_callback_query(call.id, f"✅ -{hours}ч от аренды")
+    else:
+        bot.answer_callback_query(call.id, "❌ Нельзя убрать столько времени", show_alert=True)
+    
+    call.data = f"arp_rental:{idx}"
+    rental_details(call, cardinal)
+
+def rental_time_input_start(call, cardinal):
+    idx = call.data.split(":")[1]
+    
+    text = """⏰ <b>Ввод времени</b>
+
+Введи количество часов для изменения аренды.
+
+Формат:
+• <code>+5</code> — добавить 5 часов
+• <code>-2</code> — убрать 2 часа
+• <code>5</code> — добавить 5 часов"""
+    
+    kb = K().add(B("❌ Отмена", callback_data=f"arp_rental:{idx}"))
+    msg = bot.send_message(call.message.chat.id, text, reply_markup=kb, parse_mode="HTML")
+    bot.register_next_step_handler(msg, on_rental_time_input, int(idx))
+    bot.answer_callback_query(call.id)
+
+def on_rental_time_input(message, idx):
+    try:
+        time_str = message.text.strip()
+        hours = int(time_str.replace("+", ""))
+        
+        if hours == 0:
+            bot.send_message(message.chat.id, "❌ Нельзя добавить 0 часов")
+            return handle_command(message)
+        
+        if modify_rental_time(idx, hours, notify_buyer=True):
+            active_links = load_active_links()
+            if idx < len(active_links):
+                buyer = active_links[idx].get("buyer_username", "?")
+                sign = "+" if hours > 0 else ""
+                send_tg(f"⏰ {sign}{hours}ч к аренде {buyer}")
+            sign = "+" if hours > 0 else ""
+            bot.send_message(message.chat.id, f"✅ {sign}{hours}ч к аренде")
+        else:
+            bot.send_message(message.chat.id, "❌ Не удалось изменить время")
+    except ValueError:
+        bot.send_message(message.chat.id, "❌ Введи число")
+    
+    handle_command(message)
 
 def rentals_clear_confirm(call, cardinal):
     active_links = load_active_links()
@@ -884,7 +1067,6 @@ def rentals_clear_confirm(call, cardinal):
     
     bot.edit_message_text(text, call.message.chat.id, call.message.id, reply_markup=kb, parse_mode="HTML")
     bot.answer_callback_query(call.id)
-
 
 def rentals_clear(call, cardinal):
     active_links = load_active_links()
@@ -938,12 +1120,10 @@ def display_menu(call, cardinal):
     bot.edit_message_text(text, call.message.chat.id, call.message.id, reply_markup=kb, parse_mode="HTML")
     bot.answer_callback_query(call.id)
 
-
 def toggle_show_name(call, cardinal):
     SETTINGS.setdefault("display", {})["show_server_name"] = not SETTINGS.get("display", {}).get("show_server_name", False)
     save_settings()
     display_menu(call, cardinal)
-
 
 def set_timezone(call, cardinal):
     kb = K(row_width=3)
@@ -955,14 +1135,12 @@ def set_timezone(call, cardinal):
     bot.edit_message_text("🕐 Выбери часовой пояс:", call.message.chat.id, call.message.id, reply_markup=kb)
     bot.answer_callback_query(call.id)
 
-
 def on_timezone_selected(call, cardinal):
     tz = call.data.split(":")[1]
     SETTINGS.setdefault("display", {})["timezone"] = tz
     save_settings()
     bot.answer_callback_query(call.id, f"✅ Часовой пояс: {tz}")
     display_menu(call, cardinal)
-
 
 def bonuses_menu(call, cardinal):
     try:
@@ -997,11 +1175,9 @@ def bonuses_menu(call, cardinal):
     bot.edit_message_text(text, call.message.chat.id, call.message.id, reply_markup=kb, parse_mode="HTML")
     bot.answer_callback_query(call.id)
 
-
 def handle_command(message):
     text, kb = build_menu(message.chat.id)
     bot.send_message(message.chat.id, text, reply_markup=kb, parse_mode="HTML")
-
 
 def open_menu(call, cardinal):
     try:
@@ -1015,12 +1191,10 @@ def open_menu(call, cardinal):
         pass
     bot.answer_callback_query(call.id)
 
-
 def toggle_setting(call, cardinal, key):
     SETTINGS[key] = not SETTINGS.get(key, False)
     save_settings()
     open_menu(call, cardinal)
-
 
 def accounts_menu(call, cardinal):
     try:
@@ -1040,13 +1214,11 @@ def accounts_menu(call, cardinal):
     bot.edit_message_text(text, call.message.chat.id, call.message.id, reply_markup=kb, parse_mode="HTML")
     bot.answer_callback_query(call.id)
 
-
 def add_account_start(call, cardinal):
     kb = K().add(B("❌ Отмена", callback_data="arp_accounts"))
     msg = bot.send_message(call.message.chat.id, "🔑 Отправь <b>.ROBLOSECURITY</b> cookie:", reply_markup=kb, parse_mode="HTML")
     bot.register_next_step_handler(msg, on_cookie_received)
     bot.answer_callback_query(call.id)
-
 
 def on_cookie_received(message):
     try:
@@ -1071,7 +1243,6 @@ def on_cookie_received(message):
     
     handle_command(message)
 
-
 def delete_account(call, cardinal):
     acc_id = call.data.split(":")[1]
     if acc_id in SETTINGS.get("roblox_accounts", {}):
@@ -1079,7 +1250,6 @@ def delete_account(call, cardinal):
         roblox_api_instances.pop(acc_id, None)
         save_settings()
     accounts_menu(call, cardinal)
-
 
 def lots_menu(call, cardinal):
     try:
@@ -1097,13 +1267,11 @@ def lots_menu(call, cardinal):
     bot.edit_message_text(text, call.message.chat.id, call.message.id, reply_markup=kb, parse_mode="HTML")
     bot.answer_callback_query(call.id)
 
-
 def add_lot_start(call, cardinal):
     kb = K().add(B("❌ Отмена", callback_data="arp_lots_menu"))
     msg = bot.send_message(call.message.chat.id, "📝 Введи ID лота с FunPay:", reply_markup=kb)
     bot.register_next_step_handler(msg, on_lot_id_received)
     bot.answer_callback_query(call.id)
-
 
 def on_lot_id_received(message):
     try:
@@ -1120,7 +1288,6 @@ def on_lot_id_received(message):
     except Exception as e:
         bot.send_message(message.chat.id, f"❌ Ошибка: {e}")
     handle_command(message)
-
 
 def edit_lot(call, cardinal):
     try:
@@ -1149,7 +1316,6 @@ def edit_lot(call, cardinal):
     bot.edit_message_text(text, call.message.chat.id, call.message.id, reply_markup=kb, parse_mode="HTML")
     bot.answer_callback_query(call.id)
 
-
 def set_lot_name(call, cardinal):
     lot_key = call.data.split(":")[1]
     lot = LOTS_CONFIG.get("lot_mapping", {}).get(lot_key)
@@ -1158,7 +1324,6 @@ def set_lot_name(call, cardinal):
     msg = bot.send_message(call.message.chat.id, f"📝 Текущее название:\n<code>{current_name}</code>\n\nВведи новое название лота:", reply_markup=kb, parse_mode="HTML")
     bot.register_next_step_handler(msg, on_lot_name_received, lot_key)
     bot.answer_callback_query(call.id)
-
 
 def on_lot_name_received(message, lot_key):
     new_name = message.text.strip()
@@ -1170,14 +1335,12 @@ def on_lot_name_received(message, lot_key):
         bot.send_message(message.chat.id, "❌ Лот не найден")
     handle_command(message)
 
-
 def set_lot_time(call, cardinal):
     lot_key = call.data.split(":")[1]
     kb = K().add(B("❌ Отмена", callback_data=f"arp_lot:{lot_key}"))
     msg = bot.send_message(call.message.chat.id, "⏰ Введи время (напр. <code>1h</code> или <code>30m</code>):", reply_markup=kb, parse_mode="HTML")
     bot.register_next_step_handler(msg, on_lot_time_received, lot_key)
     bot.answer_callback_query(call.id)
-
 
 def on_lot_time_received(message, lot_key):
     time_str = message.text.strip()
@@ -1189,13 +1352,11 @@ def on_lot_time_received(message, lot_key):
         bot.send_message(message.chat.id, "❌ Неверный формат")
     handle_command(message)
 
-
 def delete_lot(call, cardinal):
     lot_key = call.data.split(":")[1]
     LOTS_CONFIG["lot_mapping"].pop(lot_key, None)
     save_lots_config()
     lots_menu(call, cardinal)
-
 
 def pool_menu(call, cardinal):
     try:
@@ -1225,7 +1386,6 @@ def pool_menu(call, cardinal):
     bot.edit_message_text(text, call.message.chat.id, call.message.id, reply_markup=kb, parse_mode="HTML")
     bot.answer_callback_query(call.id)
 
-
 def add_server_start(call, cardinal):
     lot_key = call.data.split(":")[1]
     accounts = SETTINGS.get("roblox_accounts", {})
@@ -1241,14 +1401,12 @@ def add_server_start(call, cardinal):
     bot.edit_message_text("<b>Шаг 1/3:</b> Выбери аккаунт:", call.message.chat.id, call.message.id, reply_markup=kb, parse_mode="HTML")
     bot.answer_callback_query(call.id)
 
-
 def add_server_game(call, cardinal):
     _, lot_key, acc_id = call.data.split(":")
     kb = K().add(B("❌ Отмена", callback_data=f"arp_pool:{lot_key}"))
     msg = bot.send_message(call.message.chat.id, "<b>Шаг 2/3:</b> Введи Place ID игры:", reply_markup=kb, parse_mode="HTML")
     bot.register_next_step_handler(msg, on_game_id_received, lot_key, acc_id)
     bot.answer_callback_query(call.id)
-
 
 def on_game_id_received(message, lot_key, acc_id):
     try:
@@ -1261,14 +1419,12 @@ def on_game_id_received(message, lot_key, acc_id):
         bot.send_message(message.chat.id, "❌ ID должен быть числом")
         handle_command(message)
 
-
 def on_server_name_received(message, lot_key, acc_id, game_id):
     server_name = message.text.strip()
     LOTS_CONFIG["lot_mapping"][lot_key]["servers"].append({"vipgame": game_id, "vipname": server_name, "account_id": acc_id})
     save_lots_config()
     bot.send_message(message.chat.id, "✅ Сервер добавлен!")
     handle_command(message)
-
 
 def delete_server(call, cardinal):
     parts = call.data.split(":")
@@ -1279,30 +1435,25 @@ def delete_server(call, cardinal):
         save_lots_config()
     pool_menu(call, cardinal)
 
-
 def toggle_promo(call, cardinal):
     SETTINGS["promotions"]["enabled"] = not SETTINGS["promotions"].get("enabled", False)
     save_settings()
     bonuses_menu(call, cardinal)
-
 
 def toggle_review(call, cardinal):
     SETTINGS["review_bonus"]["enabled"] = not SETTINGS["review_bonus"].get("enabled", False)
     save_settings()
     bonuses_menu(call, cardinal)
 
-
 def set_promo_qty(call, cardinal):
     msg = bot.send_message(call.message.chat.id, "📦 Введи минимальное кол-во для бонуса:")
     bot.register_next_step_handler(msg, on_promo_value, "quantity_required")
     bot.answer_callback_query(call.id)
 
-
 def set_promo_hrs(call, cardinal):
     msg = bot.send_message(call.message.chat.id, "⏰ Введи кол-во бонусных часов:")
     bot.register_next_step_handler(msg, on_promo_value, "bonus_hours")
     bot.answer_callback_query(call.id)
-
 
 def on_promo_value(message, key):
     try:
@@ -1315,12 +1466,10 @@ def on_promo_value(message, key):
         bot.send_message(message.chat.id, "❌ Введи число")
     handle_command(message)
 
-
 def set_review_time(call, cardinal):
     msg = bot.send_message(call.message.chat.id, "⏰ Введи время бонуса (напр. <code>1h</code> или <code>30m</code>):", parse_mode="HTML")
     bot.register_next_step_handler(msg, on_review_time)
     bot.answer_callback_query(call.id)
-
 
 def on_review_time(message):
     time_str = message.text.strip()
@@ -1331,7 +1480,6 @@ def on_review_time(message):
     else:
         bot.send_message(message.chat.id, "❌ Неверный формат")
     handle_command(message)
-
 
 def blacklist_menu(call, cardinal):
     try:
@@ -1349,18 +1497,15 @@ def blacklist_menu(call, cardinal):
     bot.edit_message_text(text, call.message.chat.id, call.message.id, reply_markup=kb, parse_mode="HTML")
     bot.answer_callback_query(call.id)
 
-
 def bl_add(call, cardinal):
     msg = bot.send_message(call.message.chat.id, "Введи никнейм для добавления в ЧС:")
     bot.register_next_step_handler(msg, on_bl_user, "add")
     bot.answer_callback_query(call.id)
 
-
 def bl_del(call, cardinal):
     msg = bot.send_message(call.message.chat.id, "Введи никнейм для удаления из ЧС:")
     bot.register_next_step_handler(msg, on_bl_user, "del")
     bot.answer_callback_query(call.id)
-
 
 def on_bl_user(message, action):
     username = message.text.strip()
@@ -1373,13 +1518,11 @@ def on_bl_user(message, action):
     save_settings()
     handle_command(message)
 
-
 def refresh(call, cardinal):
     load_settings()
     load_lots_config()
     bot.answer_callback_query(call.id, "✅ Обновлено")
     open_menu(call, cardinal)
-
 
 def init(cardinal: 'Cardinal'):
     global tg, bot, cardinal_instance
@@ -1419,6 +1562,9 @@ def init(cardinal: 'Cardinal'):
         "arp_rentals": lambda c, cd: rentals_menu(c, cd),
         "arp_rentals_page:": rentals_page,
         "arp_rental:": rental_details,
+        "arp_rental_add:": rental_add_time,
+        "arp_rental_sub:": rental_sub_time,
+        "arp_rental_time_input:": rental_time_input_start,
         "arp_rental_end_confirm:": rental_end_confirm,
         "arp_rental_end:": rental_end,
         "arp_rentals_clear_confirm": rentals_clear_confirm,
@@ -1430,18 +1576,19 @@ def init(cardinal: 'Cardinal'):
     
     handle_new_order.plugin_uuid = UUID
     handle_renewal_command.plugin_uuid = UUID
+    handle_review_event.plugin_uuid = UUID
     
     if handle_new_order not in cardinal.new_order_handlers:
         cardinal.new_order_handlers.append(handle_new_order)
     if handle_renewal_command not in cardinal.new_message_handlers:
         cardinal.new_message_handlers.append(handle_renewal_command)
+    if handle_review_event not in cardinal.new_message_handlers:
+        cardinal.new_message_handlers.append(handle_review_event)
     
     logger.info(f"{LOGGER_PREFIX} {NAME} v{VERSION} initialized")
 
-
 def on_delete():
     stop_expiration_checker.set()
-
 
 BIND_TO_PRE_INIT = [init]
 BIND_TO_DELETE = [on_delete]
