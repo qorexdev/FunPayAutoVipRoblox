@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from cardinal import Cardinal
 
 NAME = "AutoVIP Roblox"
-VERSION = "v10.13"
+VERSION = "v10.14"
 DESCRIPTION = "Автоматическая аренда VIP-Server Roblox"
 CREDITS = "@qorexdev лучший кодер фанпей коммьюнити btw"
 UUID = "75e4241f-128a-4cd7-bad6-7e67961fced7"
@@ -1141,12 +1141,34 @@ def edit_lot(call, cardinal):
     
     kb = K(row_width=1)
     kb.add(B("🗂️ Управление серверами", callback_data=f"arp_pool:{lot_key}"))
+    kb.add(B("📝 Изменить название", callback_data=f"arp_lot_name:{lot_key}"))
     kb.add(B("⏰ Изменить время", callback_data=f"arp_lot_time:{lot_key}"))
     kb.add(B("🗑️ Удалить лот", callback_data=f"arp_lot_del:{lot_key}"))
     kb.add(B("◀️ Назад", callback_data="arp_lots_menu"))
     
     bot.edit_message_text(text, call.message.chat.id, call.message.id, reply_markup=kb, parse_mode="HTML")
     bot.answer_callback_query(call.id)
+
+
+def set_lot_name(call, cardinal):
+    lot_key = call.data.split(":")[1]
+    lot = LOTS_CONFIG.get("lot_mapping", {}).get(lot_key)
+    current_name = lot.get("name", "Без названия") if lot else "Без названия"
+    kb = K().add(B("❌ Отмена", callback_data=f"arp_lot:{lot_key}"))
+    msg = bot.send_message(call.message.chat.id, f"📝 Текущее название:\n<code>{current_name}</code>\n\nВведи новое название лота:", reply_markup=kb, parse_mode="HTML")
+    bot.register_next_step_handler(msg, on_lot_name_received, lot_key)
+    bot.answer_callback_query(call.id)
+
+
+def on_lot_name_received(message, lot_key):
+    new_name = message.text.strip()
+    if lot_key in LOTS_CONFIG.get("lot_mapping", {}):
+        LOTS_CONFIG["lot_mapping"][lot_key]["name"] = new_name
+        save_lots_config()
+        bot.send_message(message.chat.id, f"✅ Название изменено на <b>{new_name}</b>", parse_mode="HTML")
+    else:
+        bot.send_message(message.chat.id, "❌ Лот не найден")
+    handle_command(message)
 
 
 def set_lot_time(call, cardinal):
@@ -1386,7 +1408,7 @@ def init(cardinal: 'Cardinal'):
         "arp_toggle_auto_lots": lambda c, cd: toggle_setting(c, cd, "auto_toggle_lots"),
         "arp_accounts": accounts_menu, "arp_add_acc": add_account_start, "arp_del_acc:": delete_account,
         "arp_lots_menu": lots_menu, "arp_add_lot": add_lot_start, "arp_lot:": edit_lot,
-        "arp_lot_time:": set_lot_time, "arp_lot_del:": delete_lot,
+        "arp_lot_name:": set_lot_name, "arp_lot_time:": set_lot_time, "arp_lot_del:": delete_lot,
         "arp_pool:": pool_menu, "arp_pool_add:": add_server_start, "arp_pool_acc:": add_server_game, "arp_pool_del:": delete_server,
         "arp_bonuses": bonuses_menu, "arp_promo_toggle": toggle_promo, "arp_promo_qty": set_promo_qty,
         "arp_promo_hrs": set_promo_hrs, "arp_review_toggle": toggle_review, "arp_review_time": set_review_time,
