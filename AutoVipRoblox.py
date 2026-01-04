@@ -22,9 +22,9 @@ if TYPE_CHECKING:
     from cardinal import Cardinal
 
 NAME = "AutoVIP Roblox"
-VERSION = "v10.16"
+VERSION = "v1.0.0"
 DESCRIPTION = "Автоматическая аренда VIP-Server Roblox"
-CREDITS = "@qorexdev лучший кодер фанпей коммьюнити btw"
+CREDITS = "@qorexdev"
 UUID = "75e4241f-128a-4cd7-bad6-7e67961fced7"
 LICENSE_WARNING = "⚠️ Плагин БЕСПЛАТНЫЙ. Продажа ЗАПРЕЩЕНА! Купили данный плагин? Сообщите @qorexdev"
 SETTINGS_PAGE = True
@@ -49,7 +49,7 @@ DEFAULT_TEMPLATES = {
 {link}
 
 ⏰ Время аренды: {duration}
-📅 Активен до: {expiry}
+📅 Активен до: {expiry} ({tz})
 
 {bonus_info}
 💫 Не забудь подтвердить заказ после проверки!
@@ -65,7 +65,7 @@ DEFAULT_TEMPLATES = {
     "renewal": """✅ Аренда продлена!
 
 ⏰ Добавлено: {duration}
-📅 Теперь активен до: {expiry}
+📅 Теперь активен до: {expiry} ({tz})
 
 Спасибо, что остаёшься с нами! 💜""",
     "bonus_review": "🎁 Оставь отзыв 5⭐ и получи +{bonus_time} к аренде!",
@@ -73,17 +73,17 @@ DEFAULT_TEMPLATES = {
     "review_bonus_granted": """🎉 Спасибо за отзыв!
 
 +{bonus_time} добавлено к твоей аренде!
-📅 Теперь активен до: {expiry}
+📅 Теперь активен до: {expiry} ({tz})
 
 Приятной игры! 💜""",
     "time_added": """⏰ Время аренды изменено!
 
 +{duration} добавлено к твоей аренде!
-📅 Теперь активен до: {expiry}""",
+📅 Теперь активен до: {expiry} ({tz})""",
     "time_removed": """⏰ Время аренды изменено!
 
 -{duration} убрано из твоей аренды.
-📅 Теперь активен до: {expiry}"""
+📅 Теперь активен до: {expiry} ({tz})"""
 }
 
 DEFAULT_SETTINGS = {
@@ -386,7 +386,7 @@ def handle_new_order(cardinal: 'Cardinal', event: NewOrderEvent):
         expiry_str = datetime.datetime.fromtimestamp(new_expires).strftime('%d.%m.%Y %H:%M')
         duration_str = str(datetime.timedelta(seconds=duration_sec))
         
-        cardinal.send_message(chat_id, render_message("renewal", duration=duration_str, expiry=f"{expiry_str} ({tz})"))
+        cardinal.send_message(chat_id, render_message("renewal", duration=duration_str, expiry=expiry_str, tz=tz))
         send_tg(f"🔄 Продление: {buyer} +{duration_str}")
         return
     
@@ -466,7 +466,7 @@ def handle_new_order(cardinal: 'Cardinal', event: NewOrderEvent):
     expiry_str = datetime.datetime.fromtimestamp(expires_at).strftime('%d.%m.%Y %H:%M')
     
     cardinal.send_message(chat_id, render_message("success",
-        link=link, duration=duration_str, expiry=f"{expiry_str} ({tz})",
+        link=link, duration=duration_str, expiry=expiry_str, tz=tz,
         order_id=order_id, bonus_info=bonus_info))
     
     send_tg(f"✅ Выдано: {buyer} #{order_id}")
@@ -611,7 +611,7 @@ def handle_review_event(cardinal: 'Cardinal', event: NewMessageEvent):
     if chat_id:
         try:
             cardinal.send_message(chat_id, render_message("review_bonus_granted", 
-                bonus_time=bonus_time_formatted, expiry=f"{expiry_str} ({tz})"))
+                bonus_time=bonus_time_formatted, expiry=expiry_str, tz=tz))
         except:
             pass
     
@@ -654,10 +654,10 @@ def modify_rental_time(rental_idx: int, hours: int, notify_buyer: bool = True) -
             try:
                 if hours > 0:
                     cardinal_instance.send_message(chat_id, render_message("time_added",
-                        duration=duration_str, expiry=f"{expiry_str} ({tz})"))
+                        duration=duration_str, expiry=expiry_str, tz=tz))
                 else:
                     cardinal_instance.send_message(chat_id, render_message("time_removed",
-                        duration=duration_str, expiry=f"{expiry_str} ({tz})"))
+                        duration=duration_str, expiry=expiry_str, tz=tz))
             except:
                 pass
     
@@ -704,7 +704,7 @@ def build_menu(chat_id: int):
     auto_lot = "🟢 Авто-лоты" if SETTINGS.get("auto_toggle_lots") else "🔴 Авто-лоты"
     
     kb.add(B("👤 Аккаунты", callback_data="arp_accounts"), B("📦 Лоты", callback_data="arp_lots_menu"))
-    kb.add(B(f"📋 Аренды ({len(active)})", callback_data="arp_rentals"), B(f"{sales}", callback_data="arp_toggle_sales"))
+    kb.add(B(f"📋 Аренды ({len(active)})", callback_data="arp_rentals_list"), B(f"{sales}", callback_data="arp_toggle_sales"))
     kb.add(B(f"{auto_lot}", callback_data="arp_toggle_auto_lots"), B(f"{notif} Уведомления", callback_data="arp_toggle_notif"))
     kb.add(B("🎁 Бонусы", callback_data="arp_bonuses"), B("✏️ Шаблоны", callback_data="arp_templates"))
     kb.add(B("⚙️ Настройки", callback_data="arp_display"), B("🚫 ЧС", callback_data="arp_blacklist"))
@@ -923,7 +923,7 @@ def rental_details(call, cardinal):
            B("➖ 6ч", callback_data=f"arp_rental_sub:6:{idx}"))
     kb.add(B("⏰ Ввести время", callback_data=f"arp_rental_time_input:{idx}"))
     kb.add(B("🛑 Завершить аренду", callback_data=f"arp_rental_end_confirm:{idx}"))
-    kb.add(B("◀️ К списку", callback_data="arp_rentals"))
+    kb.add(B("◀️ К списку", callback_data="arp_rentals_list"))
     
     bot.edit_message_text(text, call.message.chat.id, call.message.id, reply_markup=kb, parse_mode="HTML")
     bot.answer_callback_query(call.id)
@@ -1063,7 +1063,7 @@ def rentals_clear_confirm(call, cardinal):
     
     kb = K(row_width=2)
     kb.add(B("✅ Да, завершить все", callback_data="arp_rentals_clear"))
-    kb.add(B("❌ Отмена", callback_data="arp_rentals"))
+    kb.add(B("❌ Отмена", callback_data="arp_rentals_list"))
     
     bot.edit_message_text(text, call.message.chat.id, call.message.id, reply_markup=kb, parse_mode="HTML")
     bot.answer_callback_query(call.id)
@@ -1358,33 +1358,65 @@ def delete_lot(call, cardinal):
     save_lots_config()
     lots_menu(call, cardinal)
 
-def pool_menu(call, cardinal):
+def pool_menu(call, cardinal, lot_key=None, page=0):
     try:
         bot.clear_step_handler_by_chat_id(call.message.chat.id)
     except:
         pass
-    lot_key = call.data.split(":")[1]
+    
+    if not lot_key:
+        lot_key = call.data.split(":")[1]
+        
     lot = LOTS_CONFIG["lot_mapping"].get(lot_key)
     if not lot:
         return lots_menu(call, cardinal)
     
     pool = lot.get("servers", [])
-    text = f"🗂️ <b>Пул серверов</b>\n<i>{lot['name']}</i>\n━━━━━━━━━━━━━━━━━━━━\n\n"
+    
+    PER_PAGE = 10
+    total_pages = max(1, (len(pool) + PER_PAGE - 1) // PER_PAGE)
+    
+    if page < 0: page = 0
+    if page >= total_pages: page = total_pages - 1
+    
+    start = page * PER_PAGE
+    end = start + PER_PAGE
+    page_items = pool[start:end]
+    
+    text = f"🗂️ <b>Пул серверов</b>\n<i>{lot['name']}</i>\n"
+    text += f"Страница {page+1}/{total_pages}\n"
+    text += "━━━━━━━━━━━━━━━━━━━━\n\n"
     
     kb = K(row_width=1)
-    if pool:
-        for i, s in enumerate(pool):
+    if page_items:
+        for i, s in enumerate(page_items):
+            abs_idx = start + i
             acc_name = SETTINGS.get("roblox_accounts", {}).get(str(s.get("account_id")), {}).get("name", "?")
-            text += f"{i+1}. <code>{s['vipname']}</code> ({acc_name})\n"
-            kb.add(B(f"🗑️ {i+1}. {s['vipname'][:20]}", callback_data=f"arp_pool_del:{lot_key}:{i}"))
+            text += f"{abs_idx+1}. <code>{s['vipname']}</code> ({acc_name})\n"
+            kb.add(B(f"🗑️ {abs_idx+1}. {s['vipname'][:20]}", callback_data=f"arp_pool_del:{lot_key}:{abs_idx}"))
     else:
         text += "<i>Пул пуст</i>"
+    
+    nav_btns = []
+    if page > 0:
+        nav_btns.append(B("⬅️", callback_data=f"arp_pool_page:{lot_key}:{page-1}"))
+    if page < total_pages - 1:
+        nav_btns.append(B("➡️", callback_data=f"arp_pool_page:{lot_key}:{page+1}"))
+    
+    if nav_btns:
+        kb.row(*nav_btns)
     
     kb.add(B("➕ Добавить сервер", callback_data=f"arp_pool_add:{lot_key}"))
     kb.add(B("◀️ Назад", callback_data=f"arp_lot:{lot_key}"))
     
     bot.edit_message_text(text, call.message.chat.id, call.message.id, reply_markup=kb, parse_mode="HTML")
     bot.answer_callback_query(call.id)
+
+def pool_page(call, cardinal):
+    parts = call.data.split(":")
+    lot_key = parts[1]
+    page = int(parts[2])
+    pool_menu(call, cardinal, lot_key=lot_key, page=page)
 
 def add_server_start(call, cardinal):
     lot_key = call.data.split(":")[1]
@@ -1552,14 +1584,14 @@ def init(cardinal: 'Cardinal'):
         "arp_accounts": accounts_menu, "arp_add_acc": add_account_start, "arp_del_acc:": delete_account,
         "arp_lots_menu": lots_menu, "arp_add_lot": add_lot_start, "arp_lot:": edit_lot,
         "arp_lot_name:": set_lot_name, "arp_lot_time:": set_lot_time, "arp_lot_del:": delete_lot,
-        "arp_pool:": pool_menu, "arp_pool_add:": add_server_start, "arp_pool_acc:": add_server_game, "arp_pool_del:": delete_server,
+        "arp_pool:": pool_menu, "arp_pool_page:": pool_page, "arp_pool_add:": add_server_start, "arp_pool_acc:": add_server_game, "arp_pool_del:": delete_server,
         "arp_bonuses": bonuses_menu, "arp_promo_toggle": toggle_promo, "arp_promo_qty": set_promo_qty,
         "arp_promo_hrs": set_promo_hrs, "arp_review_toggle": toggle_review, "arp_review_time": set_review_time,
         "arp_templates": templates_menu, "arp_tpl_edit:": edit_template, "arp_tpl_reset": reset_templates,
         "arp_display": display_menu, "arp_toggle_show_name": toggle_show_name, "arp_set_tz": set_timezone, "arp_tz:": on_timezone_selected,
         "arp_blacklist": blacklist_menu, "arp_bl_add": bl_add, "arp_bl_del": bl_del,
         "arp_author": author_menu,
-        "arp_rentals": lambda c, cd: rentals_menu(c, cd),
+        "arp_rentals_list": lambda c, cd: rentals_menu(c, cd),
         "arp_rentals_page:": rentals_page,
         "arp_rental:": rental_details,
         "arp_rental_add:": rental_add_time,
